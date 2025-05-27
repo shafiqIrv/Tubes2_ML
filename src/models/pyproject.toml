@@ -1,0 +1,14 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "models"
+version = "0.0.1"
+authors = [
+  { name="Shafiq Irvansyah", email="13522003@std.stei.itb.ac.id" },
+  { name="Ahmad Naufal Ramadan", email="13522005@std.stei.itb.ac.id" },
+  { name="Dewantoro Triatmojo", email="13522011@std.stei.itb.ac.id" },
+]
+
+description = "CNN, RNN, and LSTM models from Scratch"
