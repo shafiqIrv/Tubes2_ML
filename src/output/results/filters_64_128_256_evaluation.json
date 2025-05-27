@@ -1,0 +1,82 @@
+{
+  "model_name": "filters_64_128_256",
+  "test_loss": 0.7198437452316284,
+  "test_accuracy": 0.7638000249862671,
+  "macro_f1_score": 0.7618344253537712,
+  "total_parameters": 635466,
+  "classification_report": {
+    "airplane": {
+      "precision": 0.8125,
+      "recall": 0.728,
+      "f1-score": 0.7679324894514767,
+      "support": 1000.0
+    },
+    "automobile": {
+      "precision": 0.8884462151394422,
+      "recall": 0.892,
+      "f1-score": 0.8902195608782435,
+      "support": 1000.0
+    },
+    "bird": {
+      "precision": 0.6740139211136891,
+      "recall": 0.581,
+      "f1-score": 0.6240601503759399,
+      "support": 1000.0
+    },
+    "cat": {
+      "precision": 0.606430155210643,
+      "recall": 0.547,
+      "f1-score": 0.5751840168243953,
+      "support": 1000.0
+    },
+    "deer": {
+      "precision": 0.6827171109200344,
+      "recall": 0.794,
+      "f1-score": 0.73416551086454,
+      "support": 1000.0
+    },
+    "dog": {
+      "precision": 0.6467181467181468,
+      "recall": 0.67,
+      "f1-score": 0.6581532416502947,
+      "support": 1000.0
+    },
+    "frog": {
+      "precision": 0.8119001919385797,
+      "recall": 0.846,
+      "f1-score": 0.8285994123408423,
+      "support": 1000.0
+    },
+    "horse": {
+      "precision": 0.7877041306436119,
+      "recall": 0.82,
+      "f1-score": 0.8035276825085742,
+      "support": 1000.0
+    },
+    "ship": {
+      "precision": 0.8390697674418605,
+      "recall": 0.902,
+      "f1-score": 0.8693975903614458,
+      "support": 1000.0
+    },
+    "truck": {
+      "precision": 0.8764044943820225,
+      "recall": 0.858,
+      "f1-score": 0.8671045982819606,
+      "support": 1000.0
+    },
+    "accuracy": 0.7638,
+    "macro avg": {
+      "precision": 0.762590413350803,
+      "recall": 0.7638,
+      "f1-score": 0.7618344253537712,
+      "support": 10000.0
+    },
+    "weighted avg": {
+      "precision": 0.7625904133508031,
+      "recall": 0.7638,
+      "f1-score": 0.7618344253537712,
+      "support": 10000.0
+    }
+  }
+}

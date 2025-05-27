@@ -1,0 +1,83 @@
+{
+  "model_name": "pooling_average",
+  "pooling_type": "average",
+  "test_loss": 0.6653806567192078,
+  "test_accuracy": 0.7746999859809875,
+  "macro_f1_score": 0.7710382647658515,
+  "total_parameters": 225930,
+  "classification_report": {
+    "airplane": {
+      "precision": 0.7559681697612732,
+      "recall": 0.855,
+      "f1-score": 0.8024401689347724,
+      "support": 1000.0
+    },
+    "automobile": {
+      "precision": 0.8782178217821782,
+      "recall": 0.887,
+      "f1-score": 0.882587064676617,
+      "support": 1000.0
+    },
+    "bird": {
+      "precision": 0.7493670886075949,
+      "recall": 0.592,
+      "f1-score": 0.6614525139664804,
+      "support": 1000.0
+    },
+    "cat": {
+      "precision": 0.6223698781838317,
+      "recall": 0.562,
+      "f1-score": 0.5906463478717814,
+      "support": 1000.0
+    },
+    "deer": {
+      "precision": 0.7546972860125261,
+      "recall": 0.723,
+      "f1-score": 0.7385086823289071,
+      "support": 1000.0
+    },
+    "dog": {
+      "precision": 0.7049180327868853,
+      "recall": 0.645,
+      "f1-score": 0.6736292428198434,
+      "support": 1000.0
+    },
+    "frog": {
+      "precision": 0.7808836789900812,
+      "recall": 0.866,
+      "f1-score": 0.8212422949265055,
+      "support": 1000.0
+    },
+    "horse": {
+      "precision": 0.77068345323741,
+      "recall": 0.857,
+      "f1-score": 0.8115530303030303,
+      "support": 1000.0
+    },
+    "ship": {
+      "precision": 0.845227062094532,
+      "recall": 0.912,
+      "f1-score": 0.8773448773448773,
+      "support": 1000.0
+    },
+    "truck": {
+      "precision": 0.8539778449144008,
+      "recall": 0.848,
+      "f1-score": 0.8509784244856999,
+      "support": 1000.0
+    },
+    "accuracy": 0.7747,
+    "macro avg": {
+      "precision": 0.7716310316370714,
+      "recall": 0.7746999999999999,
+      "f1-score": 0.7710382647658515,
+      "support": 10000.0
+    },
+    "weighted avg": {
+      "precision": 0.7716310316370713,
+      "recall": 0.7747,
+      "f1-score": 0.7710382647658515,
+      "support": 10000.0
+    }
+  }
+}

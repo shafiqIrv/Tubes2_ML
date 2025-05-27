@@ -1,0 +1,82 @@
+{
+  "model_name": "filters_16_32_64",
+  "test_loss": 0.8036121129989624,
+  "test_accuracy": 0.7275000214576721,
+  "macro_f1_score": 0.7243710098042346,
+  "total_parameters": 90282,
+  "classification_report": {
+    "airplane": {
+      "precision": 0.7198515769944341,
+      "recall": 0.776,
+      "f1-score": 0.7468719923002888,
+      "support": 1000.0
+    },
+    "automobile": {
+      "precision": 0.8525073746312685,
+      "recall": 0.867,
+      "f1-score": 0.8596926127912742,
+      "support": 1000.0
+    },
+    "bird": {
+      "precision": 0.5948522402287894,
+      "recall": 0.624,
+      "f1-score": 0.6090775988286969,
+      "support": 1000.0
+    },
+    "cat": {
+      "precision": 0.5678271308523409,
+      "recall": 0.473,
+      "f1-score": 0.5160938352427714,
+      "support": 1000.0
+    },
+    "deer": {
+      "precision": 0.671415004748338,
+      "recall": 0.707,
+      "f1-score": 0.6887481734047735,
+      "support": 1000.0
+    },
+    "dog": {
+      "precision": 0.6874236874236874,
+      "recall": 0.563,
+      "f1-score": 0.6190214403518417,
+      "support": 1000.0
+    },
+    "frog": {
+      "precision": 0.740236148955495,
+      "recall": 0.815,
+      "f1-score": 0.7758210376011423,
+      "support": 1000.0
+    },
+    "horse": {
+      "precision": 0.8100320170757738,
+      "recall": 0.759,
+      "f1-score": 0.783686112545173,
+      "support": 1000.0
+    },
+    "ship": {
+      "precision": 0.7550335570469798,
+      "recall": 0.9,
+      "f1-score": 0.8211678832116789,
+      "support": 1000.0
+    },
+    "truck": {
+      "precision": 0.8588490770901195,
+      "recall": 0.791,
+      "f1-score": 0.8235294117647058,
+      "support": 1000.0
+    },
+    "accuracy": 0.7275,
+    "macro avg": {
+      "precision": 0.7258027815047228,
+      "recall": 0.7275,
+      "f1-score": 0.7243710098042346,
+      "support": 10000.0
+    },
+    "weighted avg": {
+      "precision": 0.7258027815047227,
+      "recall": 0.7275,
+      "f1-score": 0.7243710098042345,
+      "support": 10000.0
+    }
+  }
+}

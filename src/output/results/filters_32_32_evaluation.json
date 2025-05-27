@@ -1,0 +1,82 @@
+{
+  "model_name": "filters_32_32",
+  "test_loss": 0.8259367346763611,
+  "test_accuracy": 0.718500018119812,
+  "macro_f1_score": 0.717183445322344,
+  "total_parameters": 142186,
+  "classification_report": {
+    "airplane": {
+      "precision": 0.7558022199798183,
+      "recall": 0.749,
+      "f1-score": 0.7523857358111502,
+      "support": 1000.0
+    },
+    "automobile": {
+      "precision": 0.8640167364016736,
+      "recall": 0.826,
+      "f1-score": 0.8445807770961146,
+      "support": 1000.0
+    },
+    "bird": {
+      "precision": 0.5942327497425335,
+      "recall": 0.577,
+      "f1-score": 0.5854895991882293,
+      "support": 1000.0
+    },
+    "cat": {
+      "precision": 0.5338427947598253,
+      "recall": 0.489,
+      "f1-score": 0.5104384133611691,
+      "support": 1000.0
+    },
+    "deer": {
+      "precision": 0.6570397111913358,
+      "recall": 0.728,
+      "f1-score": 0.6907020872865275,
+      "support": 1000.0
+    },
+    "dog": {
+      "precision": 0.6234042553191489,
+      "recall": 0.586,
+      "f1-score": 0.6041237113402061,
+      "support": 1000.0
+    },
+    "frog": {
+      "precision": 0.7673076923076924,
+      "recall": 0.798,
+      "f1-score": 0.7823529411764706,
+      "support": 1000.0
+    },
+    "horse": {
+      "precision": 0.7375352775164629,
+      "recall": 0.784,
+      "f1-score": 0.7600581677169171,
+      "support": 1000.0
+    },
+    "ship": {
+      "precision": 0.8131655372700871,
+      "recall": 0.84,
+      "f1-score": 0.8263649778652238,
+      "support": 1000.0
+    },
+    "truck": {
+      "precision": 0.8228105906313645,
+      "recall": 0.808,
+      "f1-score": 0.8153380423814329,
+      "support": 1000.0
+    },
+    "accuracy": 0.7185,
+    "macro avg": {
+      "precision": 0.7169157565119941,
+      "recall": 0.7184999999999999,
+      "f1-score": 0.717183445322344,
+      "support": 10000.0
+    },
+    "weighted avg": {
+      "precision": 0.7169157565119942,
+      "recall": 0.7185,
+      "f1-score": 0.7171834453223441,
+      "support": 10000.0
+    }
+  }
+}
