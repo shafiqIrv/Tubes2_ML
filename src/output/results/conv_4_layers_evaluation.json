@@ -1,0 +1,81 @@
+{
+  "model_name": "conv_4_layers",
+  "test_loss": 0.6997600197792053,
+  "test_accuracy": 0.7623000144958496,
+  "macro_f1_score": 0.7655380519510231,
+  "classification_report": {
+    "airplane": {
+      "precision": 0.8179979777553084,
+      "recall": 0.809,
+      "f1-score": 0.8134741075917546,
+      "support": 1000.0
+    },
+    "automobile": {
+      "precision": 0.9100310237849017,
+      "recall": 0.88,
+      "f1-score": 0.8947635993899339,
+      "support": 1000.0
+    },
+    "bird": {
+      "precision": 0.7759336099585062,
+      "recall": 0.561,
+      "f1-score": 0.6511897852582704,
+      "support": 1000.0
+    },
+    "cat": {
+      "precision": 0.49701110162254486,
+      "recall": 0.582,
+      "f1-score": 0.536158452326117,
+      "support": 1000.0
+    },
+    "deer": {
+      "precision": 0.7564655172413793,
+      "recall": 0.702,
+      "f1-score": 0.7282157676348547,
+      "support": 1000.0
+    },
+    "dog": {
+      "precision": 0.5644216691068814,
+      "recall": 0.771,
+      "f1-score": 0.6517328825021133,
+      "support": 1000.0
+    },
+    "frog": {
+      "precision": 0.8019417475728156,
+      "recall": 0.826,
+      "f1-score": 0.8137931034482758,
+      "support": 1000.0
+    },
+    "horse": {
+      "precision": 0.8669574700109052,
+      "recall": 0.795,
+      "f1-score": 0.8294209702660407,
+      "support": 1000.0
+    },
+    "ship": {
+      "precision": 0.9056203605514316,
+      "recall": 0.854,
+      "f1-score": 0.8790530108080288,
+      "support": 1000.0
+    },
+    "truck": {
+      "precision": 0.8726708074534162,
+      "recall": 0.843,
+      "f1-score": 0.8575788402848423,
+      "support": 1000.0
+    },
+    "accuracy": 0.7623,
+    "macro avg": {
+      "precision": 0.7769051285058091,
+      "recall": 0.7623,
+      "f1-score": 0.7655380519510231,
+      "support": 10000.0
+    },
+    "weighted avg": {
+      "precision": 0.7769051285058091,
+      "recall": 0.7623,
+      "f1-score": 0.7655380519510231,
+      "support": 10000.0
+    }
+  }
+}
