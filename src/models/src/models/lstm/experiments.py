@@ -120,6 +120,7 @@ class LSTMExperiments:
             # Build and train model
             model = self._build_base_model(layer_count, lstm_units)
             model, history = self._train_model(model, name=f"lstm_layers_{layer_count}")
+            model.summary()
 
             models.append((model, name))
             histories.append((history, name))
@@ -147,6 +148,7 @@ class LSTMExperiments:
             model, history = self._train_model(
                 model, name=f"lstm_cells_{'_'.join(map(str, cell_units))}"
             )
+            model.summary()
 
             models.append((model, name))
             histories.append((history, name))
@@ -178,6 +180,7 @@ class LSTMExperiments:
                 model,
                 name=f"lstm_{'bidirectional' if bidirectional else 'unidirectional'}",
             )
+            model.summary()
 
             models.append((model, name))
             histories.append((history, name))
