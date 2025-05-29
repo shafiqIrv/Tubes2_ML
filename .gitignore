@@ -1,6 +1,7 @@
 __pycache__
 .vscode
 .venv
+venv
 dist
 *.h5
 *.pkl
