@@ -8,7 +8,7 @@ from tensorflow.keras.metrics import SparseCategoricalAccuracy
 from sklearn.metrics import f1_score
 import matplotlib.pyplot as plt
 
-from src.models.src.models.lstm.nusax_loader import NusaXLoader
+from src.models.src.models.base_model.utils.nusax_loader import NusaXLoader
 
 
 class LSTMExperiments:
