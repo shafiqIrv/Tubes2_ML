@@ -95,7 +95,7 @@ class LSTMExperiments:
 
         # Save model if name is provided
         if name:
-            model.save_weights(f"{name}.weights.h5")
+            model.save_weights(f"../output/models/lstm/{name}.weights.h5")
 
         return model, history
 
@@ -221,5 +221,7 @@ class LSTMExperiments:
         ax2.grid(True, linestyle="--", alpha=0.6)
 
         plt.tight_layout()
-        plt.savefig(f"{title.lower().replace(' ', '_')}_{metric}_comparison.png")
+        plt.savefig(
+            f"../output/results/lstm/{title.lower().replace(' ', '_')}_{metric}_comparison.png"
+        )
         plt.show()
