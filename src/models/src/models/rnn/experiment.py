@@ -113,8 +113,6 @@ class RNNExperiments:
 
         # Save model 
         if name:
-            model.save_weights(f"../output/models/rnn/{name}.weights.h5")
-            # Also save the full model for easier loading later
             model.save(f"../output/models/rnn/{name}.keras")
 
         return model, history
@@ -257,24 +255,15 @@ class RNNExperiments:
         plt.show()
         
     # Build RNN from scratch using keras weight
+    # returns (scratch_model, keras_model)
     def build_scratch_model(self, keras_model_path):
-        """
-        Build a scratch model that matches the architecture of a given Keras model
-        
-        Args:
-            keras_model_path: Path to the Keras model
-            
-        Returns:
-            tuple: (scratch_model, keras_model)
-        """
+
         # Load the Keras model
         keras_model = load_model(keras_model_path)
         print(f"Loaded Keras model from {keras_model_path}")
         
-        # Print the Keras model summary for debugging
         keras_model.summary()
         
-        # Create a new scratch model
         scratch_model = RNNModel()
         
         # Get model architecture
@@ -320,7 +309,6 @@ class RNNExperiments:
                 print(f"Added RNN layer: {input_dim} → {layer.units} (return_sequences={layer.return_sequences})")
                 
             elif isinstance(layer, Bidirectional):
-                # Similar logic for Bidirectional layers
                 if i > 0 and isinstance(keras_model.layers[i-1], Embedding):
                     input_dim = keras_model.layers[i-1].output_dim
                 elif i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
@@ -372,20 +360,22 @@ class RNNExperiments:
                     input_dim = 128  # Default
                     print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
                 
-                # Add dense layer
-                scratch_model.add(DenseLayer(
-                    input_dim=input_dim,
-                    output_dim=layer.units,
-                    activation=None
-                ))
-                print(f"Added Dense layer: {input_dim} → {layer.units}")
+                # # Add dense layer
+                # scratch_model.add(DenseLayer(
+                #     input_dim=input_dim,
+                #     output_dim=layer.units,
+                #     activation=None
+                # ))
+                # print(f"Added Dense layer: {input_dim} → {layer.units}")
                 
                 # Only add Softmax if this is the final Dense layer AND it has softmax activation
-                if (i == len(keras_model.layers) - 1 and 
-                    hasattr(layer, 'activation') and 
-                    getattr(layer.activation, '__name__', None) == 'softmax'):
-                    scratch_model.add(Softmax())
+                if (i == len(keras_model.layers) - 1 and hasattr(layer, 'activation') and getattr(layer.activation, '__name__', None) == 'softmax'):
                     print(f"Added Softmax activation")
+                    scratch_model.add(DenseLayer(input_dim=input_dim, output_dim=layer.units, activation=Softmax()))
+                else:
+                    print(f"Added Non Softmax activation")
+                    scratch_model.add(DenseLayer(input_dim=input_dim, output_dim=layer.units, activation=None))
+
         
         # Print scratch model structure
         print("\nScratch model structure:")
@@ -403,17 +393,8 @@ class RNNExperiments:
         return scratch_model, keras_model
 
 
-
     def compare_models(self, keras_model_path):
-        """
-        Compare a Keras model with its scratch implementation
-        
-        Args:
-            keras_model_path: Path to the Keras model
-            
-        Returns:
-            dict: Comparison results
-        """
+        # Compare scratch vs keras 
         try:
             # Build the scratch model and get the Keras model
             scratch_model, keras_model = self.build_scratch_model(keras_model_path)
@@ -425,6 +406,7 @@ class RNNExperiments:
             comparison = compare_keras_vs_scratch(keras_model, scratch_model, x_test, y_test, batch_size=self.batch_size)
             
             return comparison
+
         except Exception as e:
             print(f"Error comparing models: {e}")
             import traceback
