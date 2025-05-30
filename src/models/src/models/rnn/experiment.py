@@ -266,97 +266,180 @@ class RNNExperiments:
         
     # Build RNN from scratch using keras weight
     def build_scratch_model(self, keras_model_path):
+        """
+        Build a scratch model that matches the architecture of a given Keras model
+        
+        Args:
+            keras_model_path: Path to the Keras model
+            
+        Returns:
+            tuple: (scratch_model, keras_model)
+        """
         # Load the Keras model
         keras_model = load_model(keras_model_path)
+        print(f"Loaded Keras model from {keras_model_path}")
+        
+        # Print the Keras model summary for debugging
+        keras_model.summary()
         
         # Create a new scratch model
         scratch_model = RNNModel()
         
-        # Extract model architecture and add corresponding layers
+        # Get model architecture
+        num_layers = len(keras_model.layers)
+        print(f"Keras model has {num_layers} layers")
+        
+        # Examine each layer and add corresponding layer to scratch model
         for i, layer in enumerate(keras_model.layers):
+            layer_type = layer.__class__.__name__
+            print(f"Processing layer {i}: {layer_type}")
+            
             if isinstance(layer, Embedding):
                 # Add embedding layer
-                scratch_model.add(
-                    EmbeddingLayer(
-                        input_dim=layer.input_dim,
-                        output_dim=layer.output_dim
-                    )
-                )
-            elif isinstance(layer, SimpleRNN) or isinstance(layer, Bidirectional):
-                # Add RNN layer
-                if isinstance(layer, Bidirectional):
-                    # For bidirectional layer
-                    input_dim = layer.input_shape[-1]
-                    hidden_dim = layer.forward_layer.units
-                    scratch_model.add(
-                        RNNLayer(
-                            input_dim=input_dim,
-                            hidden_dim=hidden_dim,
-                            bidirectional=True
-                        )
-                    )
+                scratch_model.add(EmbeddingLayer(
+                    input_dim=layer.input_dim,
+                    output_dim=layer.output_dim
+                ))
+                print(f"Added Embedding layer: {layer.input_dim} → {layer.output_dim}")
+                
+            elif isinstance(layer, SimpleRNN):
+                # Get the input dimension
+                if i > 0 and isinstance(keras_model.layers[i-1], Embedding):
+                    # If previous layer is Embedding, input dim is its output dim
+                    input_dim = keras_model.layers[i-1].output_dim
+                elif i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
+                    # If previous layer is RNN, input dim is its units
+                    input_dim = keras_model.layers[i-1].units
+                elif i > 0 and isinstance(keras_model.layers[i-1], Bidirectional):
+                    # If previous layer is Bidirectional, input dim is 2x its units
+                    input_dim = keras_model.layers[i-1].forward_layer.units * 2
                 else:
-                    # For unidirectional layer
-                    input_dim = layer.input_shape[-1]
-                    hidden_dim = layer.units
-                    scratch_model.add(
-                        RNNLayer(
-                            input_dim=input_dim,
-                            hidden_dim=hidden_dim,
-                            bidirectional=False
-                        )
-                    )
+                    # Default fallback - use a reasonable default
+                    input_dim = 100
+                    print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
+                
+                # Add RNN layer
+                scratch_model.add(RNNLayer(
+                    input_dim=input_dim,
+                    hidden_dim=layer.units,
+                    bidirectional=False,
+                    return_sequences=layer.return_sequences
+                ))
+                print(f"Added RNN layer: {input_dim} → {layer.units} (return_sequences={layer.return_sequences})")
+                
+            elif isinstance(layer, Bidirectional):
+                # Similar logic for Bidirectional layers
+                if i > 0 and isinstance(keras_model.layers[i-1], Embedding):
+                    input_dim = keras_model.layers[i-1].output_dim
+                elif i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
+                    input_dim = keras_model.layers[i-1].units
+                elif i > 0 and isinstance(keras_model.layers[i-1], Bidirectional):
+                    input_dim = keras_model.layers[i-1].forward_layer.units * 2
+                else:
+                    input_dim = 100
+                    print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
+                
+                scratch_model.add(RNNLayer(
+                    input_dim=input_dim,
+                    hidden_dim=layer.forward_layer.units,
+                    bidirectional=True,
+                    return_sequences=layer.forward_layer.return_sequences
+                ))
+                print(f"Added Bidirectional RNN layer: {input_dim} → {layer.forward_layer.units} "
+                    f"(return_sequences={layer.forward_layer.return_sequences})")
+                
             elif isinstance(layer, Dropout):
                 # Add dropout layer
                 scratch_model.add(DropoutLayer(dropout_rate=layer.rate))
-            elif isinstance(layer, Dense):
-                # Add dense layer
-                input_dim = layer.input_shape[-1]
-                output_dim = layer.units
+                print(f"Added Dropout layer: rate={layer.rate}")
                 
-                if layer.activation.__name__ == 'softmax':
-                    # If the activation is softmax, add it separately
-                    scratch_model.add(
-                        DenseLayer(
-                            input_dim=input_dim,
-                            output_dim=output_dim,
-                            activation=None
-                        )
-                    )
-                    scratch_model.add(Softmax())
+            elif isinstance(layer, Dense):
+                # Get the input dimension
+                if i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
+                    input_dim = keras_model.layers[i-1].units
+                elif i > 0 and isinstance(keras_model.layers[i-1], Bidirectional):
+                    input_dim = keras_model.layers[i-1].forward_layer.units * 2
+                elif i > 0 and isinstance(keras_model.layers[i-1], Dropout):
+                    # Look for the layer before dropout
+                    prev_idx = i - 2
+                    while prev_idx >= 0 and isinstance(keras_model.layers[prev_idx], Dropout):
+                        prev_idx -= 1
+                    
+                    if prev_idx >= 0:
+                        if isinstance(keras_model.layers[prev_idx], SimpleRNN):
+                            input_dim = keras_model.layers[prev_idx].units
+                        elif isinstance(keras_model.layers[prev_idx], Bidirectional):
+                            input_dim = keras_model.layers[prev_idx].forward_layer.units * 2
+                        else:
+                            input_dim = 128  # Default if we can't determine
+                            print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
+                    else:
+                        input_dim = 128  # Default
+                        print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
                 else:
-                    # Other activations included in the dense layer
-                    scratch_model.add(
-                        DenseLayer(
-                            input_dim=input_dim,
-                            output_dim=output_dim,
-                            activation=None  
-                        )
-                    )
+                    input_dim = 128  # Default
+                    print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
+                
+                # Add dense layer
+                scratch_model.add(DenseLayer(
+                    input_dim=input_dim,
+                    output_dim=layer.units,
+                    activation=None
+                ))
+                print(f"Added Dense layer: {input_dim} → {layer.units}")
+                
+                # Only add Softmax if this is the final Dense layer AND it has softmax activation
+                if (i == len(keras_model.layers) - 1 and 
+                    hasattr(layer, 'activation') and 
+                    getattr(layer.activation, '__name__', None) == 'softmax'):
+                    scratch_model.add(Softmax())
+                    print(f"Added Softmax activation")
         
-        # Load weights from Keras model
-        scratch_model.load_weights_from_keras(keras_model)
+        # Print scratch model structure
+        print("\nScratch model structure:")
+        for i, layer in enumerate(scratch_model.layers):
+            layer_type = type(layer).__name__
+            print(f"Layer {i}: {layer_type}")
+        
+        # Load weights from the Keras model
+        try:
+            scratch_model.load_weights_from_keras(keras_model)
+            print("Successfully loaded weights from Keras model")
+        except Exception as e:
+            print(f"Error loading weights: {e}")
         
         return scratch_model, keras_model
-    
-    def compare_models(self, keras_model_path):
 
-        # Build the scratch with keras
-        scratch_model, keras_model = self.build_scratch_model(keras_model_path)
+
+
+    def compare_models(self, keras_model_path):
+        """
+        Compare a Keras model with its scratch implementation
         
-        # Get test data
-        x_test, y_test = self.data_loader.get_vectorized_data("test")
-        
-        # Compare 
-        comparison_results = compare_keras_vs_scratch(
-            keras_model, scratch_model, x_test, y_test, batch_size=self.batch_size
-        )
-        
-        print("\n=== Model Comparison Results ===")
-        print(f"Keras Model Accuracy: {comparison_results['keras_metrics']['accuracy']:.4f}")
-        print(f"Keras Model Macro F1: {comparison_results['keras_metrics']['macro_f1']:.4f}")
-        print(f"Scratch Model Accuracy: {comparison_results['scratch_metrics']['accuracy']:.4f}")
-        print(f"Scratch Model Macro F1: {comparison_results['scratch_metrics']['macro_f1']:.4f}")
-        print(f"Model Agreement: {comparison_results['model_agreement']:.4f}")
-        
-        return comparison_results
+        Args:
+            keras_model_path: Path to the Keras model
+            
+        Returns:
+            dict: Comparison results
+        """
+        try:
+            # Build the scratch model and get the Keras model
+            scratch_model, keras_model = self.build_scratch_model(keras_model_path)
+            
+            # Get test data
+            x_test, y_test = self.data_loader.get_vectorized_data("test")
+            
+            # Compare predictions
+            comparison = compare_keras_vs_scratch(keras_model, scratch_model, x_test, y_test, batch_size=self.batch_size)
+            
+            return comparison
+        except Exception as e:
+            print(f"Error comparing models: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'keras_metrics': {'accuracy': 0, 'macro_f1': 0},
+                'scratch_metrics': {'accuracy': 0, 'macro_f1': 0},
+                'model_agreement': 0,
+                'error': str(e)
+            }
