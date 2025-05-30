@@ -90,7 +90,6 @@ class RNNExperiments:
 
     def _train_model(self, model, name=None):
         # Return History
-
         train_dataset = self.data_loader.get_dataset("train")
         val_dataset = self.data_loader.get_dataset("valid")
 
@@ -136,14 +135,7 @@ class RNNExperiments:
             print(f"\n=== Training model with {name} ===")
 
             # Define RNN units per layer
-            if layer_count == 1:
-                rnn_units = [128]
-            elif layer_count == 2:
-                rnn_units = [128, 64]
-            elif layer_count == 3:
-                rnn_units = [128, 64, 32]
-            else:
-                raise ValueError("Unsupported layer count")
+            rnn_units = [64] * layer_count
 
             # Build and train model
             model = self._build_base_model(layer_count, rnn_units)
