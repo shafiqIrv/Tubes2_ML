@@ -12,12 +12,15 @@ class NusaXLoader:
         batch_size=32,
         max_sequence_length=100,
         vocab_size=10000,
+        add = False
     ):
         # Set default data_dir to an absolute path if not provided
         if data_dir is None:
             # Get the project root directory (assuming the module is in src/models/src/models/lstm)
             current_dir = os.path.dirname(os.path.abspath(__file__))
             project_root = os.path.abspath(os.path.join(current_dir, "../../../../../"))
+            if add:
+                project_root = os.path.join(project_root, "../")
             data_dir = os.path.join(project_root, "src/datasets/nusax/")
 
         self.data_dir = data_dir
