@@ -257,7 +257,6 @@ class RNNExperiments:
     # Build RNN from scratch using keras weight
     # returns (scratch_model, keras_model)
     def build_scratch_model(self, keras_model_path):
-
         # Load the Keras model
         keras_model = load_model(keras_model_path)
         print(f"Loaded Keras model from {keras_model_path}")
@@ -270,7 +269,22 @@ class RNNExperiments:
         num_layers = len(keras_model.layers)
         print(f"Keras model has {num_layers} layers")
         
-        # Examine each layer and add corresponding layer to scratch model
+        # Track dimensions 
+        current_dims = {}  
+        
+        # Determine input shape from the Keras model
+        input_shape = keras_model.input_shape
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        
+        # Store input shape
+        if len(input_shape) >= 2:
+            if len(input_shape) == 2:
+                current_dims[-1] = {'seq_length': input_shape[1], 'features': 1}
+            else:
+                current_dims[-1] = {'seq_length': input_shape[1], 'features': input_shape[2]}
+        
+        # Chek each layer and add same layer to scratch model
         for i, layer in enumerate(keras_model.layers):
             layer_type = layer.__class__.__name__
             print(f"Processing layer {i}: {layer_type}")
@@ -282,20 +296,46 @@ class RNNExperiments:
                     output_dim=layer.output_dim
                 ))
                 print(f"Added Embedding layer: {layer.input_dim} → {layer.output_dim}")
+                # Update current dimensions
+                current_dims[i] = {'seq_length': current_dims.get(i-1, {}).get('seq_length', None), 
+                                'features': layer.output_dim}
                 
             elif isinstance(layer, SimpleRNN):
-                # Get the input dimension
-                if i > 0 and isinstance(keras_model.layers[i-1], Embedding):
-                    # If previous layer is Embedding, input dim is its output dim
-                    input_dim = keras_model.layers[i-1].output_dim
-                elif i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
-                    # If previous layer is RNN, input dim is its units
-                    input_dim = keras_model.layers[i-1].units
-                elif i > 0 and isinstance(keras_model.layers[i-1], Bidirectional):
-                    # If previous layer is Bidirectional, input dim is 2x its units
-                    input_dim = keras_model.layers[i-1].forward_layer.units * 2
-                else:
-                    # Default fallback - use a reasonable default
+                # Get the input dimension by checkingg previous layers
+                input_dim = None
+                prev_idx = i - 1
+                
+                # Search backwards until we find a layer with output dimension
+                while prev_idx >= 0 and input_dim is None:
+                    prev_layer = keras_model.layers[prev_idx]
+                    
+                    if isinstance(prev_layer, Embedding):
+                        input_dim = prev_layer.output_dim
+                    elif isinstance(prev_layer, SimpleRNN):
+                        input_dim = prev_layer.units
+                    elif isinstance(prev_layer, Bidirectional):
+                        input_dim = prev_layer.forward_layer.units * 2
+                    elif isinstance(prev_layer, Dropout):
+                        # Check layer before droput
+                        prev_idx -= 1
+                        continue
+                    else:
+                        if hasattr(prev_layer, 'output_shape'):
+                            output_shape = prev_layer.output_shape
+                            if len(output_shape) >= 3:  # (batch, seq, features)
+                                input_dim = output_shape[-1]
+                    
+                    prev_idx -= 1
+                
+                # use saved dimensions
+                if input_dim is None:
+                    for j in range(i-1, -2, -1):
+                        if j in current_dims and 'features' in current_dims[j]:
+                            input_dim = current_dims[j]['features']
+                            break
+                
+                # use default
+                if input_dim is None:
                     input_dim = 100
                     print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
                 
@@ -308,76 +348,132 @@ class RNNExperiments:
                 ))
                 print(f"Added RNN layer: {input_dim} → {layer.units} (return_sequences={layer.return_sequences})")
                 
+                # Update current dimensions
+                current_dims[i] = {'seq_length': current_dims.get(i-1, {}).get('seq_length', None) if layer.return_sequences else None, 
+                                'features': layer.units}
+                
             elif isinstance(layer, Bidirectional):
-                if i > 0 and isinstance(keras_model.layers[i-1], Embedding):
-                    input_dim = keras_model.layers[i-1].output_dim
-                elif i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
-                    input_dim = keras_model.layers[i-1].units
-                elif i > 0 and isinstance(keras_model.layers[i-1], Bidirectional):
-                    input_dim = keras_model.layers[i-1].forward_layer.units * 2
-                else:
+                input_dim = None
+                prev_idx = i - 1
+                
+                while prev_idx >= 0 and input_dim is None:
+                    prev_layer = keras_model.layers[prev_idx]
+                    
+                    if isinstance(prev_layer, Embedding):
+                        input_dim = prev_layer.output_dim
+                    elif isinstance(prev_layer, SimpleRNN):
+                        input_dim = prev_layer.units
+                    elif isinstance(prev_layer, Bidirectional):
+                        input_dim = prev_layer.forward_layer.units * 2
+                    elif isinstance(prev_layer, Dropout):
+                        prev_idx -= 1
+                        continue
+                    else:
+                        if hasattr(prev_layer, 'output_shape'):
+                            output_shape = prev_layer.output_shape
+                            if len(output_shape) >= 3:
+                                input_dim = output_shape[-1]
+                    
+                    prev_idx -= 1
+                
+                # use saved dimension
+                if input_dim is None:
+                    for j in range(i-1, -2, -1):
+                        if j in current_dims and 'features' in current_dims[j]:
+                            input_dim = current_dims[j]['features']
+                            break
+                
+                # Default
+                if input_dim is None:
                     input_dim = 100
                     print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
                 
+                # Add bidirectional RNN layer
                 scratch_model.add(RNNLayer(
                     input_dim=input_dim,
                     hidden_dim=layer.forward_layer.units,
                     bidirectional=True,
                     return_sequences=layer.forward_layer.return_sequences
                 ))
-                print(f"Added Bidirectional RNN layer: {input_dim} → {layer.forward_layer.units} "
+                print(f"Added Bidirectional RNN layer: {input_dim} → {layer.forward_layer.units * 2} "
                     f"(return_sequences={layer.forward_layer.return_sequences})")
                 
+                # Update current dimensions
+                current_dims[i] = {'seq_length': current_dims.get(i-1, {}).get('seq_length', None) if layer.forward_layer.return_sequences else None, 
+                                'features': layer.forward_layer.units * 2}
+                
             elif isinstance(layer, Dropout):
-                # Add dropout layer
-                scratch_model.add(DropoutLayer(dropout_rate=layer.rate))
                 print(f"Added Dropout layer: rate={layer.rate}")
+                scratch_model.add(DropoutLayer(dropout_rate=layer.rate))
+                
+                # Dims before
+                if i-1 in current_dims:
+                    current_dims[i] = current_dims[i-1].copy()
                 
             elif isinstance(layer, Dense):
-                # Get the input dimension
-                if i > 0 and isinstance(keras_model.layers[i-1], SimpleRNN):
-                    input_dim = keras_model.layers[i-1].units
-                elif i > 0 and isinstance(keras_model.layers[i-1], Bidirectional):
-                    input_dim = keras_model.layers[i-1].forward_layer.units * 2
-                elif i > 0 and isinstance(keras_model.layers[i-1], Dropout):
-                    # Look for the layer before dropout
-                    prev_idx = i - 2
-                    while prev_idx >= 0 and isinstance(keras_model.layers[prev_idx], Dropout):
-                        prev_idx -= 1
+
+                input_dim = None
+                prev_idx = i - 1
+                
+                while prev_idx >= 0 and input_dim is None:
+                    prev_layer = keras_model.layers[prev_idx]
                     
-                    if prev_idx >= 0:
-                        if isinstance(keras_model.layers[prev_idx], SimpleRNN):
-                            input_dim = keras_model.layers[prev_idx].units
-                        elif isinstance(keras_model.layers[prev_idx], Bidirectional):
-                            input_dim = keras_model.layers[prev_idx].forward_layer.units * 2
-                        else:
-                            input_dim = 128  # Default if we can't determine
-                            print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
+                    if isinstance(prev_layer, SimpleRNN):
+                        input_dim = prev_layer.units
+                    elif isinstance(prev_layer, Bidirectional):
+                        input_dim = prev_layer.forward_layer.units * 2
+                    elif isinstance(prev_layer, Dense):
+                        input_dim = prev_layer.units
+                    elif isinstance(prev_layer, Dropout):
+                        prev_idx -= 1
+                        continue
                     else:
-                        input_dim = 128  # Default
-                        print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
-                else:
-                    input_dim = 128  # Default
+                        # get from output shape
+                        if hasattr(prev_layer, 'output_shape'):
+                            output_shape = prev_layer.output_shape
+                            if len(output_shape) == 2:  # (batch, features)
+                                input_dim = output_shape[-1]
+                            elif len(output_shape) > 2:  # Need to flatten
+
+                                input_dim = np.prod(output_shape[1:])
+                    
+                    prev_idx -= 1
+                
+                # use saved dimensions
+                if input_dim is None:
+                    for j in range(i-1, -2, -1):
+                        if j in current_dims and 'features' in current_dims[j]:
+                            input_dim = current_dims[j]['features']
+                            break
+                
+                # Default
+                if input_dim is None:
+                    input_dim = 128
                     print(f"Warning: Could not determine input dimension for layer {i}, using default {input_dim}")
                 
-                # # Add dense layer
-                # scratch_model.add(DenseLayer(
-                #     input_dim=input_dim,
-                #     output_dim=layer.units,
-                #     activation=None
-                # ))
-                # print(f"Added Dense layer: {input_dim} → {layer.units}")
+                has_softmax = (hasattr(layer, 'activation') and 
+                            getattr(layer.activation, '__name__', None) == 'softmax')
                 
-                # Only add Softmax if this is the final Dense layer AND it has softmax activation
-                if (i == len(keras_model.layers) - 1 and hasattr(layer, 'activation') and getattr(layer.activation, '__name__', None) == 'softmax'):
-                    print(f"Added Softmax activation")
-                    scratch_model.add(DenseLayer(input_dim=input_dim, output_dim=layer.units, activation=Softmax()))
+                # Add dense layer with appropriate activation
+                if has_softmax:
+                    scratch_model.add(DenseLayer(
+                        input_dim=input_dim,
+                        output_dim=layer.units,
+                        activation=Softmax()
+                    ))
+                    print(f"Added Dense layer with Softmax: {input_dim} → {layer.units}")
                 else:
-                    print(f"Added Non Softmax activation")
-                    scratch_model.add(DenseLayer(input_dim=input_dim, output_dim=layer.units, activation=None))
-
+                    scratch_model.add(DenseLayer(
+                        input_dim=input_dim,
+                        output_dim=layer.units,
+                        activation=None
+                    ))
+                    print(f"Added Dense layer: {input_dim} → {layer.units}")
+                
+                # Update current dimensions
+                current_dims[i] = {'seq_length': None, 'features': layer.units}
         
-        # Print scratch model structure
+
         print("\nScratch model structure:")
         for i, layer in enumerate(scratch_model.layers):
             layer_type = type(layer).__name__
@@ -392,9 +488,10 @@ class RNNExperiments:
         
         return scratch_model, keras_model
 
-
     def compare_models(self, keras_model_path):
-        # Compare scratch vs keras 
+        # Use smaller batch size for stable comparison
+        comparison_batch_size = 8
+        
         try:
             # Build the scratch model and get the Keras model
             scratch_model, keras_model = self.build_scratch_model(keras_model_path)
@@ -402,18 +499,267 @@ class RNNExperiments:
             # Get test data
             x_test, y_test = self.data_loader.get_vectorized_data("test")
             
-            # Compare predictions
-            comparison = compare_keras_vs_scratch(keras_model, scratch_model, x_test, y_test, batch_size=self.batch_size)
+            # Use a subset for detailed comparison
+            subset_size = min(100, len(x_test))
+            x_subset = x_test[:subset_size]
+            y_subset = y_test[:subset_size]
             
-            return comparison
-
+            print(f"\nRunning layer-by-layer comparison on a single sample...")
+            sample_x = x_subset[:1]
+            
+            # Try comparing layer outputs, but handle any errors
+            try:
+                problem_layer = self.compare_layer_outputs(keras_model, scratch_model, sample_x)
+            except Exception as e:
+                print(f"Warning: Layer-by-layer comparison failed: {e}")
+                print("Continuing with model-level comparison...")
+                problem_layer = -1
+            
+            print(f"\nRunning detailed comparison on {subset_size} samples...")
+            
+            # Get Keras predictions for subset
+            keras_probs = keras_model.predict(x_subset, batch_size=comparison_batch_size, verbose=0)
+            keras_preds = np.argmax(keras_probs, axis=1)
+            
+            # Get scratch model predictions
+            scratch_probs = []
+            for i in range(0, subset_size, comparison_batch_size):
+                end_idx = min(i + comparison_batch_size, subset_size)
+                batch_x = x_subset[i:end_idx]
+                batch_probs = scratch_model.forward(batch_x)
+                scratch_probs.append(batch_probs)
+            
+            # Combine batch predictions
+            scratch_probs = np.vstack(scratch_probs)
+            scratch_preds = np.argmax(scratch_probs, axis=1)
+            
+            # Calculate agreement metrics
+            pred_agreement = np.mean(keras_preds == scratch_preds)
+            max_prob_diff = np.max(np.abs(keras_probs - scratch_probs))
+            avg_prob_diff = np.mean(np.abs(keras_probs - scratch_probs))
+            
+            print(f"\nPrediction agreement: {pred_agreement:.4f} ({int(pred_agreement * subset_size)}/{subset_size} samples)")
+            print(f"Maximum probability difference: {max_prob_diff:.6f}")
+            print(f"Average probability difference: {avg_prob_diff:.6f}")
+            
+            # Find samples with disagreement
+            disagreement_indices = np.where(keras_preds != scratch_preds)[0]
+            
+            if len(disagreement_indices) > 0:
+                print(f"\nFound {len(disagreement_indices)} samples with disagreement:")
+                
+                # Analyze a few disagreements in detail
+                for idx in disagreement_indices[:min(3, len(disagreement_indices))]:
+                    print(f"\nSample {idx}:")
+                    print(f"  Keras pred: {keras_preds[idx]} (confidence: {keras_probs[idx][keras_preds[idx]]:.4f})")
+                    print(f"  Scratch pred: {scratch_preds[idx]} (confidence: {scratch_probs[idx][scratch_preds[idx]]:.4f})")
+                    print(f"  Abs probability differences: {np.abs(keras_probs[idx] - scratch_probs[idx])}")
+            
+            # Compare on full test set
+            print("\nComparing models on full test set...")
+            full_comparison = compare_keras_vs_scratch(keras_model, scratch_model, x_test, y_test, batch_size=self.batch_size)
+            
+            # Add detailed metrics
+            full_comparison['detailed'] = {
+                'subset_size': subset_size,
+                'pred_agreement': pred_agreement,
+                'max_prob_diff': max_prob_diff,
+                'avg_prob_diff': avg_prob_diff,
+                'num_disagreements': len(disagreement_indices)
+            }
+            
+            return full_comparison
+            
         except Exception as e:
             print(f"Error comparing models: {e}")
             import traceback
             traceback.print_exc()
+            
             return {
                 'keras_metrics': {'accuracy': 0, 'macro_f1': 0},
                 'scratch_metrics': {'accuracy': 0, 'macro_f1': 0},
                 'model_agreement': 0,
                 'error': str(e)
             }
+
+    def compare_models_simple(self, keras_model_path):
+        try:
+            # Build the scratch model and get the Keras model
+            scratch_model, keras_model = self.build_scratch_model(keras_model_path)
+            
+            # test data
+            x_test, y_test = self.data_loader.get_vectorized_data("test")
+            
+            subset_size = min(100, len(x_test))
+            x_subset = x_test[:subset_size]
+            y_subset = y_test[:subset_size]
+            
+            # Get Keras predictions
+            print("Getting Keras predictions...")
+            keras_probs = keras_model.predict(x_subset, batch_size=8, verbose=0)
+            keras_preds = np.argmax(keras_probs, axis=1)
+            
+            # Get scratch model predictions
+            print("Getting scratch model predictions...")
+            scratch_probs = []
+            for i in range(0, subset_size, 8):
+                end_idx = min(i + 8, subset_size)
+                batch_x = x_subset[i:end_idx]
+                batch_probs = scratch_model.forward(batch_x)
+                scratch_probs.append(batch_probs)
+            
+            scratch_probs = np.vstack(scratch_probs)
+            scratch_preds = np.argmax(scratch_probs, axis=1)
+            
+            # Calculate metrics
+            pred_agreement = np.mean(keras_preds == scratch_preds)
+            max_prob_diff = np.max(np.abs(keras_probs - scratch_probs))
+            avg_prob_diff = np.mean(np.abs(keras_probs - scratch_probs))
+            
+            print(f"\nPrediction agreement: {pred_agreement:.4f} ({int(pred_agreement * subset_size)}/{subset_size} samples)")
+            print(f"Maximum probability difference: {max_prob_diff:.6f}")
+            print(f"Average probability difference: {avg_prob_diff:.6f}")
+            
+            # Calculate comparison 
+            print("\nComparing on full dataset...")
+            result = compare_keras_vs_scratch(keras_model, scratch_model, x_test, y_test, batch_size=32)
+            
+            result['detailed'] = {
+                'subset_agreement': pred_agreement,
+                'max_prob_diff': max_prob_diff,
+                'avg_prob_diff': avg_prob_diff
+            }
+            
+            return result
+        
+        except Exception as e:
+            print(f"Error comparing models: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'error': str(e),
+                'model_agreement': 0
+            }
+
+
+    def compare_layer_outputs(self, keras_model, scratch_model, x_sample):
+
+        import tensorflow as tf
+        
+        keras_full_output = keras_model.predict(x_sample, verbose=0)
+        
+        keras_layer_outputs = []
+        
+        input_shape = keras_model.input_shape
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        
+        new_input = tf.keras.Input(shape=input_shape[1:])
+        
+        x = new_input
+        intermediate_models = []
+        
+        for layer in keras_model.layers:
+            if isinstance(layer, tf.keras.layers.Embedding):
+                new_layer = tf.keras.layers.Embedding(
+                    input_dim=layer.input_dim,
+                    output_dim=layer.output_dim,
+                    weights=layer.get_weights()
+                )
+            elif isinstance(layer, tf.keras.layers.SimpleRNN):
+                new_layer = tf.keras.layers.SimpleRNN(
+                    units=layer.units,
+                    return_sequences=layer.return_sequences,
+                    weights=layer.get_weights()
+                )
+            elif isinstance(layer, tf.keras.layers.Bidirectional):
+                forward_layer = layer.forward_layer
+                if isinstance(forward_layer, tf.keras.layers.SimpleRNN):
+                    new_forward = tf.keras.layers.SimpleRNN(
+                        units=forward_layer.units,
+                        return_sequences=forward_layer.return_sequences,
+                        weights=forward_layer.get_weights()
+                    )
+                    new_layer = tf.keras.layers.Bidirectional(
+                        new_forward,
+                        weights=layer.get_weights()
+                    )
+                else:
+                    new_layer = type(layer).from_config(layer.get_config())
+                    new_layer.build(x.shape)
+                    new_layer.set_weights(layer.get_weights())
+            elif isinstance(layer, tf.keras.layers.Dropout):
+                new_layer = tf.keras.layers.Dropout(rate=layer.rate)
+            elif isinstance(layer, tf.keras.layers.Dense):
+                new_layer = tf.keras.layers.Dense(
+                    units=layer.units,
+                    activation=layer.activation,
+                    weights=layer.get_weights()
+                )
+            else:
+                try:
+                    new_layer = type(layer).from_config(layer.get_config())
+                    new_layer.build(x.shape)
+                    new_layer.set_weights(layer.get_weights())
+                except Exception as e:
+                    print(f"Could not recreate layer {type(layer).__name__}: {e}")
+                    continue
+            
+            x = new_layer(x)
+            
+            intermediate_model = tf.keras.Model(inputs=new_input, outputs=x)
+            intermediate_models.append(intermediate_model)
+        
+        for i, model in enumerate(intermediate_models):
+            try:
+                output = model.predict(x_sample, verbose=0)
+                keras_layer_outputs.append(output)
+            except Exception as e:
+                print(f"Error getting output for layer {i}: {e}")
+                keras_layer_outputs.append(None)
+        
+        scratch_layer_outputs = []
+        x = x_sample.copy()
+        for layer in scratch_model.layers:
+            if isinstance(layer, DropoutLayer):
+                # Disable dropout during inference
+                x = layer.forward(x, training=False)
+            else:
+                x = layer.forward(x)
+            scratch_layer_outputs.append(x.copy())
+        
+        # Compare outputs 
+        print("\nLayer-by-layer comparison:")
+        for i, (keras_out, scratch_out) in enumerate(zip(keras_layer_outputs, scratch_layer_outputs)):
+    
+            if keras_out is None:
+                print(f"Layer {i}: Could not get Keras output - skipping comparison")
+                continue
+                
+            # Get layer types
+            keras_layer_type = keras_model.layers[i].__class__.__name__
+            scratch_layer_type = type(scratch_model.layers[i]).__name__
+            
+            # Compare shapes
+            shape_match = (keras_out.shape == scratch_out.shape)
+            
+            print(f"Layer {i} ({keras_layer_type} / {scratch_layer_type}):")
+            print(f"  Shape match: {shape_match} (Keras: {keras_out.shape}, Scratch: {scratch_out.shape})")
+            
+            if shape_match:
+                max_diff = np.max(np.abs(keras_out - scratch_out))
+                mean_diff = np.mean(np.abs(keras_out - scratch_out))
+                
+                is_close = max_diff < 1e-5
+                
+                print(f"  Max difference: {max_diff:.6f}")
+                print(f"  Mean difference: {mean_diff:.6f}")
+                print(f"  Outputs close: {is_close}")
+                
+
+                if not is_close:
+                    print(f"\nFound significant difference at layer {i} ({keras_layer_type})")
+                    return i
+        
+        return -1  
+        

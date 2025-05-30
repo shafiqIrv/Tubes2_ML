@@ -1,5 +1,7 @@
 import numpy as np
 from sklearn.metrics import f1_score, accuracy_score
+# Import DropoutLayer explicitly
+from src.models.src.models.base_model.layers.dropout_layer import DropoutLayer
 
 
 class RNNModel:
@@ -12,12 +14,19 @@ class RNNModel:
         self.layers.append(layer)
     
     def forward(self, inputs):
-        x = inputs
+        x = inputs.astype(np.float32)  # Ensure consistent type
         
         for i, layer in enumerate(self.layers):
             try:
                 x_prev_shape = x.shape
-                x = layer.forward(x)
+                
+                # Special handling for dropout - now with proper import
+                if isinstance(layer, DropoutLayer):
+                    # Always disable dropout during inference
+                    x = layer.forward(x, training=False)
+                else:
+                    x = layer.forward(x)
+                    
                 print(f"Layer {i} ({type(layer).__name__}): {x_prev_shape} -> {x.shape}")
             except Exception as e:
                 print(f"ERROR in layer {i} ({type(layer).__name__})")
