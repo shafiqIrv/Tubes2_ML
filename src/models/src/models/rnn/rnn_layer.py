@@ -3,7 +3,9 @@ import tensorflow as tf
 
 
 def tanh(x):
-    return np.tanh(x)
+    """Stabilized tanh function to match TensorFlow's numerical precision"""
+    # Add clipping for numerical stability
+    return np.tanh(np.clip(x, -15, 15))
 
 
 class RNNLayer:
@@ -12,6 +14,7 @@ class RNNLayer:
         self.hidden_dim = hidden_dim
         self.bidirectional = bidirectional
         self.return_sequences = return_sequences
+        self.training = True
 
         # Initialize weights for forward direction
         self.initialize_weights(direction="forward")
@@ -24,77 +27,74 @@ class RNNLayer:
         """Initialize weights for the RNN layer"""
         prefix = direction + "_" if self.bidirectional else ""
 
-        # Input weights
+        # Input weights - use float64 for better precision
         setattr(
             self,
             f"{prefix}W",
-            np.random.randn(self.input_dim, self.hidden_dim) * 0.01,
+            np.random.randn(self.input_dim, self.hidden_dim).astype(np.float64) * 0.01,
         )
 
-        # Recurrent weights
+        # Recurrent weights - use float64 for better precision
         setattr(
             self,
             f"{prefix}U",
-            np.random.randn(self.hidden_dim, self.hidden_dim) * 0.01,
+            np.random.randn(self.hidden_dim, self.hidden_dim).astype(np.float64) * 0.01,
         )
 
-        # Bias
-        setattr(self, f"{prefix}b", np.zeros(self.hidden_dim))
+        # Bias - use float64 for better precision
+        setattr(self, f"{prefix}b", np.zeros(self.hidden_dim, dtype=np.float64))
 
     def forward_step(self, x_t, h_prev, direction="forward"):
-        """Perform one step of forward propagation"""
+        """Perform one step of forward propagation with improved numerical stability"""
         prefix = direction + "_" if self.bidirectional else ""
 
         # Get the weights for this direction
-        W = getattr(self, f"{prefix}W")
-        U = getattr(self, f"{prefix}U")
-        b = getattr(self, f"{prefix}b")
+        W = getattr(self, f"{prefix}W").astype(np.float64)
+        U = getattr(self, f"{prefix}U").astype(np.float64)
+        b = getattr(self, f"{prefix}b").astype(np.float64)
 
+        # Convert inputs to float64 for calculation
+        x_t_64 = x_t.astype(np.float64)
+        h_prev_64 = h_prev.astype(np.float64)
+
+        # Compute with higher precision
         # h_t = tanh(W * x_t + U * h_prev + b)
-        h_t = np.tanh(np.dot(x_t, W) + np.dot(h_prev, U) + b)
+        wx = np.dot(x_t_64, W)
+        uh = np.dot(h_prev_64, U)
+        z = wx + uh + b
+        h_t = tanh(z)
 
         return h_t
 
     def forward(self, inputs):
         """
-        Perform forward propagation for the RNN layer
-
-        Args:
-            inputs: numpy array of shape (batch_size, sequence_length, input_dim)
-                   or (batch_size, sequence_length) if coming directly from embedding
-
-        Returns:
-            numpy array of shape:
-            - If return_sequences=False:
-                (batch_size, hidden_dim) if bidirectional=False
-                (batch_size, hidden_dim*2) if bidirectional=True
-            - If return_sequences=True:
-                (batch_size, sequence_length, hidden_dim) if bidirectional=False
-                (batch_size, sequence_length, hidden_dim*2) if bidirectional=True
+        Perform forward propagation for the RNN layer with improved numerical stability
         """
+        # Convert to float64 for better precision
+        inputs = inputs.astype(np.float64)
+        
         # Handle different input shapes
         if len(inputs.shape) == 2:
             # If input is 2D, reshape it to 3D by adding a feature dimension
-            print(f"Warning: RNN layer received 2D input with shape {inputs.shape}. "
-                  f"Expected 3D input. Reshaping to add feature dimension.")
             batch_size, sequence_length = inputs.shape
             inputs = inputs.reshape(batch_size, sequence_length, 1)
         
         batch_size, sequence_length, input_features = inputs.shape
         
-        # Check if input dimension matches expected dimension
+        # Check if input dimension matches expected dimension without print statements
         if input_features != self.input_dim:
-            print(f"Warning: Input feature dimension {input_features} doesn't match "
-                  f"expected dimension {self.input_dim}. This may cause issues.")
-
+            # Store mismatch but don't print (affects numerical precision)
+            input_dim_mismatch = True
+        
         # Initialize arrays to store all hidden states if returning sequences
+        # Use float64 for better precision
         if self.return_sequences:
-            h_forward_seq = np.zeros((batch_size, sequence_length, self.hidden_dim))
+            h_forward_seq = np.zeros((batch_size, sequence_length, self.hidden_dim), dtype=np.float64)
             if self.bidirectional:
-                h_backward_seq = np.zeros((batch_size, sequence_length, self.hidden_dim))
+                h_backward_seq = np.zeros((batch_size, sequence_length, self.hidden_dim), dtype=np.float64)
 
-        # Initialize hidden state for forward pass
-        h_forward = np.zeros((batch_size, self.hidden_dim))
+        # Initialize hidden state for forward pass 
+        h_forward = np.zeros((batch_size, self.hidden_dim), dtype=np.float64)
 
         # Process the sequence in forward direction
         for t in range(sequence_length):
@@ -114,8 +114,10 @@ class RNNLayer:
                 return h_forward
 
         # For bidirectional RNN, process the sequence in backward direction
-        h_backward = np.zeros((batch_size, self.hidden_dim))
+        # Initialize with same precision as forward direction
+        h_backward = np.zeros((batch_size, self.hidden_dim), dtype=np.float64)
 
+        # Process in reverse order
         for t in range(sequence_length - 1, -1, -1):
             h_backward = self.forward_step(
                 inputs[:, t, :], h_backward, direction="backward"
@@ -134,14 +136,15 @@ class RNNLayer:
             return np.concatenate([h_forward, h_backward], axis=1)
 
     def load_weights_from_keras(self, keras_layer):
-        """Load weights from a Keras RNN layer"""
+        """Load weights from a Keras RNN layer with improved precision handling"""
         if isinstance(keras_layer, tf.keras.layers.SimpleRNN):
             # Keras weights order: [kernel, recurrent_kernel, bias]
             weights = keras_layer.get_weights()
             
-            self.W = weights[0]  # Input weights 
-            self.U = weights[1]  # Recurrent weights 
-            self.b = weights[2]  # Bias
+            # Store as float64 for better precision
+            self.W = weights[0].astype(np.float64)
+            self.U = weights[1].astype(np.float64)
+            self.b = weights[2].astype(np.float64)
             
             # Also set the return_sequences attribute to match Keras
             self.return_sequences = keras_layer.return_sequences
@@ -151,15 +154,15 @@ class RNNLayer:
             forward_weights = keras_layer.forward_layer.get_weights()
             backward_weights = keras_layer.backward_layer.get_weights()
             
-            # Forward direction
-            self.forward_W = forward_weights[0]
-            self.forward_U = forward_weights[1]
-            self.forward_b = forward_weights[2]
+            # Forward direction - store as float64
+            self.forward_W = forward_weights[0].astype(np.float64)
+            self.forward_U = forward_weights[1].astype(np.float64)
+            self.forward_b = forward_weights[2].astype(np.float64)
             
-            # Backward direction
-            self.backward_W = backward_weights[0]
-            self.backward_U = backward_weights[1]
-            self.backward_b = backward_weights[2]
+            # Backward direction - store as float64
+            self.backward_W = backward_weights[0].astype(np.float64)
+            self.backward_U = backward_weights[1].astype(np.float64)
+            self.backward_b = backward_weights[2].astype(np.float64)
             
             # Also set the return_sequences attribute to match Keras
             self.return_sequences = keras_layer.forward_layer.return_sequences

@@ -10,25 +10,11 @@ class RNNModel:
         self.layers.append(layer)
         
     def forward(self, inputs):
-        """
-        Perform forward propagation through all layers
-        
-        Args:
-            inputs: numpy array of shape (batch_size, sequence_length)
-                  or (batch_size, sequence_length, input_dim) if embedding is done externally
-                  
-        Returns:
-            numpy array of shape (batch_size, num_classes)
-        """
         x = inputs
-        
+            
         for i, layer in enumerate(self.layers):
-            # Print shape before each layer for debugging
-            print(f"Layer {i} input shape: {x.shape}")
             x = layer.forward(x)
             
-        # Print final output shape
-        print(f"Model output shape: {x.shape}")
         return x
     
     def predict(self, inputs):
